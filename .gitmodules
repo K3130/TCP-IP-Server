@@ -1,0 +1,6 @@
+[submodule "Graphic"]
+	path = Graphic
+	url = https://github.com/K3130/Graphic
+[submodule "Networking"]
+	path = Networking
+	url = https://github.com/K3130/Networking
