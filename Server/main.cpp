@@ -9,7 +9,7 @@
 
 
 int main()
-{
-	Server server(60000);
+{   
+	Server server;
 	return 0;
 }

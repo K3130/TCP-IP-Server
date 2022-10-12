@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED on)
 
 add_executable(Server "main.cpp" "Server.h" "Server.cpp"
 				"../Graphic/Graphic/Graphic.hpp"
-				"../Networking/net_client.h" "../Networking/net_common.h" "../Networking/net_connection.h" "../Networking/net_message.h" "../Networking/net_server.h" "../Networking/net_tsqueue.h" "../Networking/olc_net.h")
+				"../Networking/net_client.h" "../Networking/net_common.h" "../Networking/net_tcp_server.h")
 
 
 find_package(glad CONFIG REQUIRED)
