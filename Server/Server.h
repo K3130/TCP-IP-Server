@@ -7,6 +7,7 @@ public:
 	Server();
 	void setPort(const std::string &aPort);
 	void UpdateGraphicScene();
+	void OnRender();
 private:
 	std::string m_port;
 	std::string m_bufer_chat;

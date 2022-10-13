@@ -4,7 +4,7 @@
 
 Server::Server()
 {
-	Init(1024, 768, "TCP/IP Server", ImVec4(0.45f, 0.55f, 0.60f, 1.00f));
+	Init(1024, 768, "TCP/IP Server");
 }
 
 void Server::setPort(const std::string &aPort)
@@ -36,9 +36,18 @@ void Server::UpdateGraphicScene()
         ImGui::SetCursorPos(ImVec2(525.0f, 270.0f));
         if (ImGui::Button("Send", ImVec2(75, 19)))
         {
-            m_bufer_chat += m_bufer_message + "\n\r";
-            m_server->send_message_all_clients("[SERVER] " + m_bufer_message + "\n\r");
-            m_bufer_message.clear();
+            if (m_is_server_running && !m_server->getClients().empty())
+            {
+                m_bufer_chat += m_bufer_message + "\n\r";
+                m_server->send_message_all_clients("[SERVER] " + m_bufer_message + "\n\r");
+                m_bufer_message.clear();
+            }
+            else
+            {
+                m_warning_text = "There's nobody here.";
+                m_warning_message = true;
+                m_bufer_message.clear();
+            }
         }
         //--
 
@@ -101,7 +110,6 @@ void Server::UpdateGraphicScene()
         ImGui::SetNextWindowSize(ImVec2(200, 400), 0);
 
         ImGui::Begin("Online", &m_window_users);
-        ImGui::PopStyleColor();
 
         if(!m_server->getClients().empty())
         {
@@ -138,6 +146,96 @@ void Server::UpdateGraphicScene()
         //--
         ImGui::End();
     }
+}
+
+void Server::OnRender()
+{
+    float vertices[] = {
+         -1.0f, -1.0f, 0.0f, // осталось
+         1.0f, -1.0f, 0.0f, // право
+         0.0f,  1.0f, 0.0f  // вверх
+    };
+
+    // Вершинный шейдер
+    const char* vertexShaderSource = "#version 330 core\n"
+        "layout (location = 0) in vec3 aPos;\n"
+        "out vec4 vertexColor;\n"
+        "void main()\n"
+        "{\n"
+        "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+        "   vertexColor = vec4(1.0f, 1.0f, 0.8f, 0.8f);\n"
+        "}\0";
+
+    // Фрагментный шейдер
+    const char* fragmentShaderSource = "#version 330 core\n"
+        "out vec4 FragColor;\n"
+        "in vec4 vertexColor;\n"
+        "void main()\n"
+        "{\n"
+        "   FragColor = vertexColor;\n"
+        "}\n\0";
+
+    int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    glCompileShader(vertexShader);
+    // проверка ошибок
+    int success;
+    char infoLog[512];
+    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+    }
+    // компилируем фрагментный шейдер
+    int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+    glCompileShader(fragmentShader);
+    // проверка ошибок
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
+    }
+
+    // Создаем программный объект
+    int shaderProgram = glCreateProgram();
+    // Присоединяем скомпилированный шейдер к программе
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glLinkProgram(shaderProgram);
+    // Проверка ошибок ссылки
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+    }
+    // ссылка завершена, удаляем шейдерный объект
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    unsigned int VBO, VAO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
+    glBindVertexArray(VAO);
+
+    // Копируем массив вершин в буфер для использования openGL
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // Устанавливаем указатель атрибута вершины и сообщаем openGL, как анализировать эти данные вершины
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Рендеринг
+    glClearColor(0.0f, 0.8f, 0.8f, 1.0f);// Устанавливаем цвет, используемый для очистки экрана p
+    glClear(GL_COLOR_BUFFER_BIT);// Используем текущее состояние, чтобы получить цвет, который нужно очистить
+
+    glUseProgram(shaderProgram);
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
 
@@ -177,6 +275,10 @@ void Server::exitProgram()
     Shutdown();
     exit(0);
 }
+
+
+
+
 
 
 
