@@ -1,5 +1,6 @@
 #include "Server.h"
-
+#include "triangle.hpp"
+#include <filesystem>
 
 
 Server::Server()
@@ -150,92 +151,127 @@ void Server::UpdateGraphicScene()
 
 void Server::OnRender()
 {
-    float vertices[] = {
-         -1.0f, -1.0f, 0.0f, // осталось
-         1.0f, -1.0f, 0.0f, // право
-         0.0f,  1.0f, 0.0f  // вверх
+    const unsigned int width = 1024;
+    const unsigned int height = 768;
+
+    GLfloat vertices[] =
+    { //vertices                /normals               /texture coord  //
+     -0.5f, 0.0f,  0.5f,     0.83f, 0.70f, 0.44f,	0.0f, 0.0f,
+    -0.5f, 0.0f, -0.5f,     0.83f, 0.70f, 0.44f,	5.0f, 0.0f,
+     0.5f, 0.0f, -0.5f,     0.83f, 0.70f, 0.44f,	0.0f, 0.0f,
+     0.5f, 0.0f,  0.5f,     0.83f, 0.70f, 0.44f,	5.0f, 0.0f,
+     0.0f, 0.8f,  0.0f,     0.92f, 0.86f, 0.76f,	2.5f, 5.0f
+         
     };
 
-    // Вершинный шейдер
+    GLuint indices[] =
+    {
+        0, 1, 2,
+        0, 2, 3,
+        0, 1, 4,
+        1, 2, 4,
+        2, 3, 4,
+        3, 0, 4
+    };
+
     const char* vertexShaderSource = "#version 330 core\n"
-        "layout (location = 0) in vec3 aPos;\n"
-        "out vec4 vertexColor;\n"
-        "void main()\n"
-        "{\n"
-        "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-        "   vertexColor = vec4(1.0f, 1.0f, 0.8f, 0.8f);\n"
-        "}\0";
+    "layout (location = 0) in vec3 aPos;\n"
+    "layout (location = 1) in vec3 aColor;\n"
+    "layout (location = 2) in vec2 aTex;\n"
+    "out vec3 color;\n"
+    "out vec2 texCoord;\n"
+    "uniform float scale;\n"
+    "uniform mat4 model;\n"
+    "uniform mat4 view;\n"
+    "uniform mat4 proj;\n"
+    "void main()\n"
+    "{\n"
+    "   gl_Position = proj * view * model * vec4(aPos, 1.0);\n"
+    "   color = aColor;\n"
+    "   texCoord = aTex;\n"
+    "}\0";
 
-    // Фрагментный шейдер
     const char* fragmentShaderSource = "#version 330 core\n"
-        "out vec4 FragColor;\n"
-        "in vec4 vertexColor;\n"
-        "void main()\n"
-        "{\n"
-        "   FragColor = vertexColor;\n"
-        "}\n\0";
+    "out vec4 FragColor;\n"
+    "in vec3 color;\n"
+    "in vec2 texCoord;\n"
+    "uniform sampler2D tex0;\n"
+    "void main()\n"
+    "{\n"
+    "   FragColor = texture(tex0, texCoord);\n"
+    "}\n\0";
 
-    int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
-    // проверка ошибок
-    int success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success)
+    Shader shaderProgram(vertexShaderSource, fragmentShaderSource);
+    
+    VAO VAO1;
+    VAO1.Bind();
+
+    VBO VBO1(vertices, sizeof(vertices));
+    EBO EBO1(indices, sizeof(indices));
+
+    VAO1.LinkAttrib(VBO1, 0, 3, GL_FLOAT, 8 * sizeof(float), (void*)0);
+    VAO1.LinkAttrib(VBO1, 1, 3, GL_FLOAT, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    VAO1.LinkAttrib(VBO1, 2, 2, GL_FLOAT, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    
+    VAO1.Unbind();
+    VBO1.Unbind();
+    EBO1.Unbind();
+
+    GLuint uniID = glGetUniformLocation(shaderProgram.ID, "scale");
+    std::string parentDir = std::filesystem::current_path().std::filesystem::path::parent_path().string();
+    Texture brickTex((parentDir + "\\texture.png").c_str(), GL_TEXTURE_2D, GL_TEXTURE0, GL_RGBA, GL_UNSIGNED_BYTE);
+    brickTex.texUnit(shaderProgram, "tex0", 0);
+    
+
+    glEnable(GL_DEPTH_TEST);
+
+    glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
+    
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    shaderProgram.Activate();
+
+    
+    double crntTime = glfwGetTime();
+    if (crntTime - m_prevTime >= 1 / 60)
     {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
-    // компилируем фрагментный шейдер
-    int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-    // проверка ошибок
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
+        m_rotation += 0.5f;
+        m_prevTime = crntTime;
     }
 
-    // Создаем программный объект
-    int shaderProgram = glCreateProgram();
-    // Присоединяем скомпилированный шейдер к программе
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    // Проверка ошибок ссылки
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-    }
-    // ссылка завершена, удаляем шейдерный объект
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    
+    glm::mat4 model = glm::mat4(1.0f);
+    glm::mat4 view = glm::mat4(1.0f);
+    glm::mat4 proj = glm::mat4(1.0f);
 
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-    glBindVertexArray(VAO);
+    
+    model = glm::rotate(model, glm::radians(m_rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+    //position
+    view = glm::translate(view, glm::vec3(-0.3f, -0.1f, -2.0f));
 
-    // Копируем массив вершин в буфер для использования openGL
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    proj = glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f);
 
-    // Устанавливаем указатель атрибута вершины и сообщаем openGL, как анализировать эти данные вершины
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+    
+    int modelLoc = glGetUniformLocation(shaderProgram.ID, "model");
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    int viewLoc = glGetUniformLocation(shaderProgram.ID, "view");
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+    int projLoc = glGetUniformLocation(shaderProgram.ID, "proj");
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(proj));
 
-    // Рендеринг
-    glClearColor(0.0f, 0.8f, 0.8f, 1.0f);// Устанавливаем цвет, используемый для очистки экрана p
-    glClear(GL_COLOR_BUFFER_BIT);// Используем текущее состояние, чтобы получить цвет, который нужно очистить
+    glUniform1f(uniID, 0.5f);
+    brickTex.Bind();
+    VAO1.Bind();
+    
+    glDrawElements(GL_TRIANGLES, sizeof(indices) / sizeof(int), GL_UNSIGNED_INT, 0);
+    
+    
+    VAO1.Delete();
+    VBO1.Delete();
+    EBO1.Delete();
+    brickTex.Delete();
+    shaderProgram.Delete();
 
-    glUseProgram(shaderProgram);
-    glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
 
@@ -250,23 +286,27 @@ void Server::startServer()
     {
         m_server = std::make_shared<CustomServer>(std::stoi(m_port));
         m_is_server_running = m_server->start_server();
-
         m_bufer_chat += m_server->get_error() + '\n';
-
         m_window_users = true;
-
     }
-    
 }
 
 void Server::stopServer()
 {   
-    m_server->send_message_all_clients("[SERVER] The server will be stopped\n\r");
-    m_server->stop_server();
-    m_is_server_running = false;
-
-    m_window_users = false;
+    if (m_is_server_running)
+    {
+        m_server->send_message_all_clients("[SERVER] The server will be stopped\n\r");
+        m_server->stop_server();
+        m_is_server_running = false;
+        m_window_users = false;
+    }
+    else
+    {
+        m_warning_text = "Server not running!";
+        m_warning_message = true;
+    }
 }
+    
 
 void Server::exitProgram()
 {

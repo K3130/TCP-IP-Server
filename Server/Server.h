@@ -1,6 +1,10 @@
 #include "CustomServer.hpp"
 #include "../Graphic/Graphic/Graphic.hpp"
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 class Server : public Graphic::ImGuiWindowOpengl<Server> //CRTP
 {
 public:
@@ -20,8 +24,11 @@ private:
 	bool m_window_users = false;
 	bool m_warning_message = false;
 	bool m_is_server_running = false;
+	float m_rotation = 0.0f;
+	double m_prevTime = glfwGetTime();
 private:
 	void startServer();
 	void stopServer();
 	void exitProgram();
+
 };
