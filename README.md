@@ -3,10 +3,10 @@
 
 ![chat2](https://user-images.githubusercontent.com/23383424/198527045-eee38e67-0ddf-4e81-9327-6eb3dca23718.gif)
 
-***To assemble you need:***
-*install: vcpkg*
-*run vcpkg.json to install: *
-```
+***To assemble you need:***    
+*install: vcpkg*    
+*run vcpkg.json to install: *    
+``` C++
   {
   "name": "ace",
   "version-string": "1.0",
@@ -21,7 +21,7 @@
     "stb",
     "asio"
   ]
-}
+  }
 ```
-*To run it, you need to have at least version 10 of DirectX installed.*
-*This version is incomplete!*
+*To run it, you need to have at least version 10 of DirectX installed.*    
+*This version is incomplete!*    
