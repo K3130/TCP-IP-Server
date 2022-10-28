@@ -7,7 +7,7 @@
 *install: vcpkg*   
 *run vcpkg.json to install:*
 
-``` C++
+``` json
   {
   "name": "ace",
   "version-string": "1.0",
