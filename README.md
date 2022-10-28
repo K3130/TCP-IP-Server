@@ -5,7 +5,7 @@
 
 ***To assemble you need:***    
 *install: vcpkg*   
-*run vcpkg.json to install: *
+*run vcpkg.json to install:*
 
 ``` C++
   {
